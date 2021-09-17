@@ -1,17 +1,19 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Cardano.CLI.Mary.ValueParser
   ( parseValue
   ) where
 
 import           Prelude
 
+import           Control.Applicative (some, (<|>))
+import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Char as Char
 import           Data.Functor (void, ($>))
 import           Data.List (foldl')
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import           Data.Word (Word64)
-
-import           Control.Applicative (some, (<|>))
 
 import           Text.Parsec as Parsec (notFollowedBy, try, (<?>))
 import           Text.Parsec.Char (alphaNum, char, digit, hexDigit, space, spaces, string)
@@ -111,10 +113,15 @@ decimal = do
 
 -- | Asset name parser.
 assetName :: Parser AssetName
-assetName =
-    toAssetName <$> some alphaNum
-  where
-    toAssetName = AssetName . Text.encodeUtf8 . Text.pack
+assetName = do
+  hexText <- some hexDigit
+  note "AssetName deserisalisation failed" $
+    deserialiseFromRawBytesHex AsAssetName $ BSC.pack hexText
+
+note :: MonadFail m => String -> Maybe a -> m a
+note msg = \case
+  Nothing -> fail msg
+  Just a -> pure a
 
 -- | Policy ID parser.
 policyId :: Parser PolicyId
